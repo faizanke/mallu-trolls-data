@@ -1,0 +1,47 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  json:
+    name: JSON parse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse all JSON files
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          failed = []
+          files = [
+              path
+              for path in sorted(Path(".").rglob("*.json"))
+              if ".git" not in path.parts
+          ]
+          if not files:
+              print("No JSON files found")
+              sys.exit(0)
+
+          for path in files:
+              try:
+                  with path.open(encoding="utf-8") as handle:
+                      json.load(handle)
+              except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                  print(f"FAIL: {path}: {exc}")
+                  failed.append(path)
+              else:
+                  print(f"OK: {path}")
+
+          if failed:
+              print(f"\n{len(failed)} file(s) failed JSON parse")
+              sys.exit(1)
+
+          print(f"\n{len(files)} file(s) parsed successfully")
+          PY
